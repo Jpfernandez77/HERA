@@ -695,7 +695,7 @@ const STORE_KEY = 'tandas_oro_v2';
 
 // ← Pega aquí la URL de tu Google Apps Script (ver apps_script.gs)
 // Si lo dejas vacío, los datos se guardan en localStorage del navegador.
-const GAS_URL = 'https://script.google.com/macros/s/AKfycby0yPLRvS5RS3pXxKmp5XBDvpsO7qo7E0GMV29V8IXStG877HT5WSdl7YRpNjPlXHlwEw/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwKJDMc84YhwnXtdWtEIyDrfQ6lOHX3pFD0TP15xEZJ5WoQ5BkBnCxt7DQNNAnx4xL8BQ/exec';
 
 // ── caché en memoria ──────────────────────────────────────────────────────────
 let _data = null;
@@ -704,21 +704,39 @@ function getData() {
   return _data || { tandas: [], ultimo: 0 };
 }
 
+// JSONP — evita CORS usando tags <script>, compatible con GAS redirects
+function gasJsonp(params) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_gcb' + Date.now();
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      cleanup(); reject(new Error('Timeout'));
+    }, 15000);
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cbName] = (data) => { cleanup(); resolve(data); };
+    script.onerror = () => { cleanup(); reject(new Error('Error de red')); };
+    const qs = new URLSearchParams({ ...params, callback: cbName }).toString();
+    script.src = GAS_URL + '?' + qs;
+    document.head.appendChild(script);
+  });
+}
+
 async function initData() {
   if (GAS_URL) {
     try {
-      const r = await fetch(GAS_URL);
-      _data = await r.json();
+      _data = await gasJsonp({});
     } catch(e) {
-      _data = { tandas: [], ultimo: 0 };
-      console.warn('Google Sheets no disponible:', e.message);
+      console.warn('GAS no disponible:', e.message);
+      try { _data = JSON.parse(localStorage.getItem(STORE_KEY)) || { tandas: [], ultimo: 0 }; }
+      catch { _data = { tandas: [], ultimo: 0 }; }
     }
   } else {
-    try {
-      _data = JSON.parse(localStorage.getItem(STORE_KEY)) || { tandas: [], ultimo: 0 };
-    } catch {
-      _data = { tandas: [], ultimo: 0 };
-    }
+    try { _data = JSON.parse(localStorage.getItem(STORE_KEY)) || { tandas: [], ultimo: 0 }; }
+    catch { _data = { tandas: [], ultimo: 0 }; }
   }
 }
 
@@ -727,8 +745,9 @@ function saveLocal() {
 }
 
 async function gasPost(payload) {
-  const url = GAS_URL + '?p=' + encodeURIComponent(JSON.stringify(payload));
-  await fetch(url);
+  saveLocal();
+  if (!GAS_URL) return;
+  await gasJsonp({ p: JSON.stringify(payload) });
 }
 
 async function syncGuardar(tanda) {
