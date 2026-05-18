@@ -693,9 +693,9 @@
 const FACTOR    = { "10": 10/24, "14": 14/24, "18": 18/24, "24": 1 };
 const STORE_KEY = 'tandas_oro_v2';
 
-// ← Pega aquí la URL de tu Google Apps Script (ver apps_script.gs)
-// Si lo dejas vacío, los datos se guardan en localStorage del navegador.
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwKJDMc84YhwnXtdWtEIyDrfQ6lOHX3pFD0TP15xEZJ5WoQ5BkBnCxt7DQNNAnx4xL8BQ/exec';
+// ── Supabase ──────────────────────────────────────────────────────────────────
+const SB_URL = 'https://yzqgwdnivvannvnjxvst.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6cWd3ZG5pdnZhbm52bmp4dnN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNDY0NzEsImV4cCI6MjA5NDcyMjQ3MX0.dnbVfuqMQNYBRF8C6q4xFfy6xhleA48YLpl6ji476Qw';
 
 // ── caché en memoria ──────────────────────────────────────────────────────────
 let _data = null;
@@ -704,45 +704,42 @@ function getData() {
   return _data || { tandas: [], ultimo: 0 };
 }
 
-// JSONP — evita CORS usando tags <script>, compatible con GAS redirects
-function gasJsonp(params) {
-  return new Promise((resolve, reject) => {
-    const cbName = '_gcb' + Date.now();
-    const script = document.createElement('script');
-    const timer = setTimeout(() => {
-      cleanup(); reject(new Error('Timeout'));
-    }, 15000);
-    function cleanup() {
-      clearTimeout(timer);
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-    }
-    window[cbName] = (data) => { cleanup(); resolve(data); };
-    script.onerror = () => { cleanup(); reject(new Error('Error de red')); };
-    const qs = new URLSearchParams({ ...params, callback: cbName }).toString();
-    script.src = GAS_URL + '?' + qs;
-    document.head.appendChild(script);
+async function sbFetch(method, path, body) {
+  const headers = {
+    'apikey': SB_KEY,
+    'Authorization': 'Bearer ' + SB_KEY,
+    'Content-Type': 'application/json',
+  };
+  if (method === 'POST') headers['Prefer'] = 'return=minimal';
+  const r = await fetch(SB_URL + path, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
   });
+  if (!r.ok) throw new Error('Supabase ' + r.status);
+  const text = await r.text();
+  return text ? JSON.parse(text) : null;
 }
 
 async function initData() {
-  // 1. Carga local inmediata (siempre funciona, sin espera)
+  // 1. Carga local inmediata
   try { _data = JSON.parse(localStorage.getItem(STORE_KEY)) || { tandas: [], ultimo: 0 }; }
   catch { _data = { tandas: [], ultimo: 0 }; }
 
-  // 2. Sincroniza con GAS en segundo plano (no bloquea la UI)
-  if (GAS_URL) {
-    gasJsonp({}).then(remote => {
-      if (remote && Array.isArray(remote.tandas) && remote.tandas.length > 0) {
-        // Si GAS tiene más tandas que local, usa GAS como fuente de verdad
-        if (remote.tandas.length >= _data.tandas.length) {
-          _data = remote;
-          saveLocal();
-          renderDashboard();
-          renderAllTandas();
-        }
-      }
-    }).catch(() => {});
+  // 2. Carga desde Supabase (fuente de verdad)
+  try {
+    const rows = await sbFetch('GET', '/rest/v1/tandas?select=data&order=id.asc');
+    if (rows && rows.length > 0) {
+      const tandas = rows.map(r => r.data);
+      const ultimo = tandas.reduce((max, t) => {
+        const n = parseInt((t.codigo || '').replace('ORO_', '')) || 0;
+        return n > max ? n : max;
+      }, 0);
+      _data = { tandas, ultimo };
+      saveLocal();
+    }
+  } catch(e) {
+    console.warn('Supabase no disponible, usando datos locales:', e.message);
   }
 }
 
@@ -750,22 +747,15 @@ function saveLocal() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(_data)); } catch {}
 }
 
-async function gasPost(payload) {
-  saveLocal();
-  if (!GAS_URL) return;
-  await gasJsonp({ p: JSON.stringify(payload) });
-}
-
 async function syncGuardar(tanda) {
   saveLocal();
-  if (!GAS_URL) return;
-  await gasPost({ action: 'guardar', tanda });
+  await sbFetch('POST', '/rest/v1/tandas', { codigo: tanda.codigo, data: tanda });
 }
 
 async function syncCompletar(codigo, completacion) {
   saveLocal();
-  if (!GAS_URL) return;
-  await gasPost({ action: 'completar', codigo, completacion });
+  const tanda = getData().tandas.find(t => t.codigo === codigo);
+  if (tanda) await sbFetch('PATCH', `/rest/v1/tandas?codigo=eq.${encodeURIComponent(codigo)}`, { data: tanda });
 }
 
 // ── nav ───────────────────────────────────────────────────────────────────────
@@ -1155,8 +1145,7 @@ async function eliminarTanda(codigo) {
 
 async function syncEliminar(codigo) {
   saveLocal();
-  if (!GAS_URL) return;
-  await gasPost({ action: 'eliminar', codigo });
+  await sbFetch('DELETE', `/rest/v1/tandas?codigo=eq.${encodeURIComponent(codigo)}`);
 }
 
 // ── NUEVA TANDA ───────────────────────────────────────────────────────────────
@@ -1166,16 +1155,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById(id).addEventListener('input', actualizarPreviewNueva));
 
   const statusEl = document.getElementById('gs-status');
-  if (GAS_URL) {
-    statusEl.textContent = '⏳ Cargando datos desde Google Sheets…';
-    statusEl.style.display = 'block';
-    await initData();
-    statusEl.style.display = 'none';
-  } else {
-    await initData();
-    statusEl.textContent = '💾 Guardando en este navegador. Configura GAS_URL en el HTML para usar Google Sheets.';
-    statusEl.style.display = 'block';
-  }
+  statusEl.textContent = '⏳ Cargando datos…';
+  statusEl.style.display = 'block';
+  await initData();
+  statusEl.style.display = 'none';
   renderDashboard();
 });
 
@@ -1784,8 +1767,7 @@ function usarPrecioUltimaTanda() {
 // ── SYNC ACTUALIZAR ───────────────────────────────────────────────────────────
 async function syncActualizar(tanda) {
   saveLocal();
-  if (!GAS_URL) return;
-  await gasPost({ action: 'actualizar', tanda });
+  await sbFetch('PATCH', `/rest/v1/tandas?codigo=eq.${encodeURIComponent(tanda.codigo)}`, { data: tanda });
 }
 </script>
 </body>
