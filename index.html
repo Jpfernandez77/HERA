@@ -726,17 +726,23 @@ function gasJsonp(params) {
 }
 
 async function initData() {
+  // 1. Carga local inmediata (siempre funciona, sin espera)
+  try { _data = JSON.parse(localStorage.getItem(STORE_KEY)) || { tandas: [], ultimo: 0 }; }
+  catch { _data = { tandas: [], ultimo: 0 }; }
+
+  // 2. Sincroniza con GAS en segundo plano (no bloquea la UI)
   if (GAS_URL) {
-    try {
-      _data = await gasJsonp({});
-    } catch(e) {
-      console.warn('GAS no disponible:', e.message);
-      try { _data = JSON.parse(localStorage.getItem(STORE_KEY)) || { tandas: [], ultimo: 0 }; }
-      catch { _data = { tandas: [], ultimo: 0 }; }
-    }
-  } else {
-    try { _data = JSON.parse(localStorage.getItem(STORE_KEY)) || { tandas: [], ultimo: 0 }; }
-    catch { _data = { tandas: [], ultimo: 0 }; }
+    gasJsonp({}).then(remote => {
+      if (remote && Array.isArray(remote.tandas) && remote.tandas.length > 0) {
+        // Si GAS tiene más tandas que local, usa GAS como fuente de verdad
+        if (remote.tandas.length >= _data.tandas.length) {
+          _data = remote;
+          saveLocal();
+          renderDashboard();
+          renderAllTandas();
+        }
+      }
+    }).catch(() => {});
   }
 }
 
