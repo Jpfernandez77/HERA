@@ -695,7 +695,7 @@ const STORE_KEY = 'tandas_oro_v2';
 
 // ← Pega aquí la URL de tu Google Apps Script (ver apps_script.gs)
 // Si lo dejas vacío, los datos se guardan en localStorage del navegador.
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzK8mlfTEBhv3I4SpNCTRkM_tLwhlNtDeGyFrcDUbY0zGvqdqj2NvPp7vnShL6c-z86wg/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycby0yPLRvS5RS3pXxKmp5XBDvpsO7qo7E0GMV29V8IXStG877HT5WSdl7YRpNjPlXHlwEw/exec';
 
 // ── caché en memoria ──────────────────────────────────────────────────────────
 let _data = null;
@@ -727,12 +727,8 @@ function saveLocal() {
 }
 
 async function gasPost(payload) {
-  await fetch(GAS_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload),
-  });
+  const url = GAS_URL + '?p=' + encodeURIComponent(JSON.stringify(payload));
+  await fetch(url);
 }
 
 async function syncGuardar(tanda) {
