@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculadora de Oro</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold:    #c4a882;
+      --gold-lt: #d9c4a6;
+      --gold-dk: #9a7d60;
+      --bg:      #0e0c0a;
+      --surface: #1a1612;
+      --card:    #221d15;
+      --border:  #302820;
+      --text:    #ede8e0;
+      --muted:   #8a8070;
+      --green:   #6aaf82;
+      --red:     #e05c5c;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── header ── */
+    header {
+      background: linear-gradient(135deg, #16120a 0%, #241c10 50%, #16120a 100%);
+      border-bottom: 1px solid var(--gold-dk);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header .logo-wrap {
+      width: 48px; height: 48px;
+      background: rgba(196,168,130,.08);
+      border: 1px solid rgba(196,168,130,.2);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 20px; font-weight: 600; color: var(--gold-lt); letter-spacing: .5px; }
+    header p  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* ── layout ── */
+    .app { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 65px); }
+
+    /* ── sidebar ── */
+    nav {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+    }
+    nav button {
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      color: var(--muted);
+      padding: 12px 24px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all .15s;
+    }
+    nav button:hover  { color: var(--text); background: var(--card); }
+    nav button.active { color: var(--gold-lt); background: rgba(201,168,76,.08); border-right: 3px solid var(--gold); }
+    nav .divider { height: 1px; background: var(--border); margin: 8px 16px; }
+
+    /* ── main ── */
+    main { padding: 32px; overflow-y: auto; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    h2 { font-size: 20px; font-weight: 600; color: var(--gold-lt); margin-bottom: 24px; }
+    h3 { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+         letter-spacing: .8px; margin-bottom: 16px; }
+
+    /* ── cards ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    /* ── form ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+
+    input, select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus, select:focus { border-color: var(--gold-dk); }
+    select option { background: var(--surface); }
+
+    .field { margin-bottom: 0; }
+
+    /* ── karat section ── */
+    .karat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .karat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .karat-card h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gold);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .karat-card .field + .field { margin-top: 10px; }
+
+    /* ── buttons ── */
+    .btn {
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold-dk), var(--gold));
+      color: #111;
+    }
+    .btn-gold:hover { filter: brightness(1.1); }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn-outline:hover { border-color: var(--gold-dk); color: var(--text); }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+
+    .actions { display: flex; gap: 10px; margin-top: 20px; }
+
+    /* ── result box ── */
+    .result-box {
+      background: rgba(201,168,76,.06);
+      border: 1px solid rgba(201,168,76,.2);
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    .result-box h3 { color: var(--gold); margin-bottom: 16px; }
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      font-size: 14px;
+    }
+    .result-row:last-child { border-bottom: none; }
+    .result-row .label { color: var(--muted); }
+    .result-row .value { font-weight: 600; }
+    .value.gold  { color: var(--gold-lt); }
+    .value.green { color: var(--green); }
+    .value.red   { color: var(--red); }
+
+    /* ── badge ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-pending   { background: rgba(196,168,130,.15); color: var(--gold); }
+    .badge-completed { background: rgba(106,175,130,.15); color: var(--green); }
+    .badge-vaciado   { background: rgba(100,180,240,.15); color: #6ab4f0; }
+    .badge-tienda    { background: rgba(180,100,240,.15); color: #c084f0; }
+
+    /* ── state toggle strip ── */
+    .state-bar { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0 4px; }
+    .state-btn {
+      padding: 5px 13px; border-radius: 20px; border: 1px solid var(--border);
+      background: none; color: var(--muted); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all .15s;
+    }
+    .state-btn:hover { border-color: var(--gold-dk); color: var(--text); }
+    .state-btn.active-p { background: rgba(196,168,130,.2); border-color: var(--gold); color: var(--gold); }
+    .state-btn.active-v { background: rgba(100,180,240,.2); border-color: #6ab4f0; color: #6ab4f0; }
+    .state-btn.active-c { background: rgba(106,175,130,.2); border-color: var(--green); color: var(--green); }
+    .state-btn.active-t { background: rgba(180,100,240,.2); border-color: #c084f0; color: #c084f0; }
+
+    /* ── tabla de tandas ── */
+    .tanda-list { display: flex; flex-direction: column; gap: 10px; }
+    .tanda-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .tanda-item:hover { border-color: var(--gold-dk); }
+    .tanda-item .meta { display: flex; flex-direction: column; gap: 4px; }
+    .tanda-item .code { font-weight: 700; color: var(--gold-lt); font-size: 15px; }
+    .tanda-item .sub  { font-size: 12px; color: var(--muted); }
+    .tanda-item .right { display: flex; align-items: center; gap: 14px; }
+    .tanda-item .weight { font-size: 14px; font-weight: 600; }
+    .btn-delete {
+      background: none; border: 1px solid transparent; border-radius: 6px;
+      color: var(--muted); cursor: pointer; padding: 5px 8px; font-size: 15px;
+      line-height: 1; transition: all .15s; flex-shrink: 0;
+    }
+    .btn-delete:hover { color: var(--red); border-color: var(--red); background: rgba(224,92,92,.08); }
+
+    .confirm-bar {
+      display: none; align-items: center; gap: 10px; margin-top: 8px;
+      padding: 10px 14px; background: rgba(224,92,92,.1);
+      border: 1px solid rgba(224,92,92,.3); border-radius: 6px; font-size: 13px;
+    }
+    .confirm-bar.show { display: flex; }
+    .confirm-bar span { flex: 1; color: var(--text); }
+
+    /* ── modal ── */
+    .overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      width: 560px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .modal-header h2 { margin: 0; font-size: 17px; }
+    .close-btn { background: none; border: none; color: var(--muted); font-size: 22px; cursor: pointer; line-height: 1; }
+
+    /* ── stats strip ── */
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+    }
+    .stat-card .s-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+    .stat-card .s-value { font-size: 24px; font-weight: 700; color: var(--gold-lt); margin-top: 6px; }
+    .stat-card .s-sub   { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    /* ── empty ── */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty .big { font-size: 48px; margin-bottom: 12px; }
+    .empty p    { font-size: 14px; }
+
+    /* ── toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: var(--green);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all .3s;
+      z-index: 200;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    .sep { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+    .text-right { text-align: right; }
+    .mt-16 { margin-top: 16px; }
+
+    /* production table inside modal */
+    .prod-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+    .prod-table th { color: var(--muted); font-weight: 500; text-align: left; padding: 6px 8px;
+                     border-bottom: 1px solid var(--border); }
+    .prod-table td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,.04); }
+    .prod-table tr:last-child td { border-bottom: none; }
+    .prod-table .kl { color: var(--gold); font-weight: 700; }
+
+    .rpt-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 12px 0; white-space: nowrap; }
+    .rpt-table th { color: var(--muted); font-weight: 500; text-align: left; padding: 7px 10px;
+                    border-bottom: 2px solid var(--border); background: var(--surface); position: sticky; top: 0; }
+    .rpt-table td { padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
+    .rpt-table tr:hover td { background: rgba(201,168,76,.05); }
+    .rpt-table tr:last-child td { border-bottom: none; }
+    .rpt-table .cod { color: var(--gold); font-weight: 700; font-family: monospace; }
+    .rpt-table .num { text-align: right; }
+    .rpt-table .cmpl { color: #4ade80; font-size: 11px; }
+    .rpt-table .pend { color: var(--muted); font-size: 11px; }
+
+    .stats-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+    @media (max-width: 600px) { .stats-4 { grid-template-columns: repeat(2, 1fr); } }
+
+    .rpt-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    @media (max-width: 600px) { .rpt-summary { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 60" width="38" height="32">
+      <text x="1" y="52" font-family="'Times New Roman',Georgia,serif" font-size="58"
+            font-weight="400" fill="#c4a882" letter-spacing="-10">HH</text>
+    </svg>
+  </div>
+  <div>
+    <h1>Calculadora de Oro</h1>
+    <p>Rendimiento y costos por tanda</p>
+  </div>
+</header>
+
+<div class="app">
+  <nav>
+    <button class="active" onclick="showPage('dashboard')">📊 &nbsp;Dashboard</button>
+    <button onclick="showPage('nueva')">➕ &nbsp;Nueva Tanda</button>
+    <button onclick="showPage('completar')">✅ &nbsp;Completar Tanda</button>
+    <div class="divider"></div>
+    <button onclick="showPage('tandas')">📋 &nbsp;Todas las Tandas</button>
+    <button onclick="showPage('reportes')">📈 &nbsp;Reportes</button>
+    <div class="divider"></div>
+    <button onclick="showPage('calculadora')">🧮 &nbsp;Calculadora</button>
+  </nav>
+
+  <main>
+
+    <div id="gs-status" style="display:none;background:rgba(201,168,76,.1);border:1px solid var(--gold-dk);border-radius:8px;padding:12px 18px;margin-bottom:20px;color:var(--gold-lt);font-size:14px;"></div>
+
+    <!-- ── DASHBOARD ── -->
+    <div id="page-dashboard" class="page active">
+      <h2>Dashboard</h2>
+      <div class="stats-4" id="stats-strip"></div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+          <h3 style="margin:0">Resumen del Mes</h3>
+          <input type="month" id="month-picker"
+            style="background:var(--surface);border:1px solid var(--border);border-radius:6px;
+                   color:var(--text);padding:6px 10px;font-size:13px;outline:none;cursor:pointer"
+            onchange="renderMensual(this.value)" />
+        </div>
+        <div class="stats-4" id="monthly-strip" style="margin-bottom:16px"></div>
+        <div id="monthly-karat-table"></div>
+      </div>
+
+      <h3>Tandas Recientes</h3>
+      <div id="recent-list" class="tanda-list"></div>
+    </div>
+
+    <!-- ── REPORTES ── -->
+    <div id="page-reportes" class="page">
+      <h2>Reportes</h2>
+      <div class="card">
+        <h3>Rango de Fechas</h3>
+        <div class="grid-2">
+          <div class="field">
+            <label>Desde</label>
+            <input type="date" id="r-desde" />
+          </div>
+          <div class="field">
+            <label>Hasta</label>
+            <input type="date" id="r-hasta" />
+          </div>
+        </div>
+        <div class="actions" style="margin-top:16px">
+          <button class="btn btn-gold" onclick="generarReporte()">Ver Reporte</button>
+          <button class="btn btn-outline" id="btn-csv" style="display:none" onclick="exportarCSV()">
+            ⬇ Exportar CSV
+          </button>
+        </div>
+      </div>
+      <div id="reporte-preview"></div>
+    </div>
+
+    <!-- ── NUEVA TANDA ── -->
+    <div id="page-nueva" class="page">
+      <h2>Registrar Nueva Tanda</h2>
+      <div class="card">
+        <h3>Información General</h3>
+        <div class="grid-2">
+          <div class="field">
+            <label>Fecha</label>
+            <input type="date" id="n-fecha" />
+          </div>
+          <div class="field">
+            <label>Código (se genera automático)</label>
+            <input type="text" id="n-codigo" readonly placeholder="Se asignará al guardar" style="opacity:.5" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Oro Comprado</h3>
+        <div class="grid-2">
+          <div class="field">
+            <label>Gramos pedidos</label>
+            <input type="number" id="n-pedido" placeholder="0.00" min="0" step="0.01" />
+          </div>
+          <div class="field">
+            <label>Kilataje</label>
+            <div style="display:flex;align-items:center;height:38px;padding:0 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:14px;color:var(--gold-lt);font-weight:600;">
+              24k — Oro Fino
+            </div>
+          </div>
+          <div class="field" style="grid-column:1/-1">
+            <label>Costo total ($)</label>
+            <input type="number" id="n-costo" placeholder="0.00" min="0" step="0.01" style="max-width:260px" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Oro Reciclado</h3>
+        <div class="grid-2">
+          <div class="field">
+            <label>Gramos reciclados (0 si no hay)</label>
+            <input type="number" id="n-reciclado" placeholder="0.00" min="0" step="0.01" value="0" oninput="toggleKilateRecic()" />
+          </div>
+          <div class="field" id="n-kilate-recic-field" style="display:none">
+            <label>Kilataje del oro reciclado</label>
+            <input type="number" id="n-kilate-recic" placeholder="ej: 14.00" min="1" max="24" step="0.01" />
+          </div>
+        </div>
+      </div>
+
+      <div id="nueva-preview" class="result-box" style="display:none">
+        <h3>Vista Previa</h3>
+      </div>
+
+      <div id="form-error" style="display:none;background:rgba(224,92,92,.15);border:1px solid var(--red);border-radius:6px;padding:12px 16px;margin-bottom:4px;color:var(--red);font-size:14px;font-weight:500;"></div>
+
+      <div class="actions">
+        <button class="btn btn-gold" onclick="registrarTanda()">Guardar Tanda</button>
+        <button class="btn btn-outline" onclick="limpiarNueva()">Limpiar</button>
+      </div>
+    </div>
+
+    <!-- ── COMPLETAR ── -->
+    <div id="page-completar" class="page">
+      <h2>Completar Tanda</h2>
+
+      <div class="card">
+        <h3>Selecciona la Tanda</h3>
+        <div class="grid-2">
+          <div class="field">
+            <label>Código de Tanda</label>
+            <select id="c-selector" onchange="cargarTandaParaCompletar()">
+              <option value="">-- Selecciona --</option>
+            </select>
+          </div>
+        </div>
+        <div id="c-info" style="margin-top:16px;display:none"></div>
+      </div>
+
+      <div id="c-form" style="display:none">
+        <div class="card">
+          <h3>Producción por Kilataje</h3>
+          <div class="karat-grid">
+            <div class="karat-card">
+              <h4>🔸 Oro 10k</h4>
+              <div class="field"><label>Piezas producidas</label>
+                <input type="number" id="c-10k-piezas" placeholder="0" min="0" step="1" value="0" onchange="calcularPreview()" /></div>
+              <div class="field mt-16"><label>Piezas con defecto</label>
+                <input type="number" id="c-10k-malas" placeholder="0" min="0" step="1" value="0" onchange="calcularPreview()"
+                  /></div>
+              <div class="field mt-16"><label>Peso total (g)</label>
+                <input type="number" id="c-10k-peso" placeholder="0.00" min="0" step="0.01" value="0" onchange="calcularPreview()" /></div>
+            </div>
+            <div class="karat-card">
+              <h4>🔶 Oro 14k</h4>
+              <div class="field"><label>Piezas producidas</label>
+                <input type="number" id="c-14k-piezas" placeholder="0" min="0" step="1" value="0" onchange="calcularPreview()" /></div>
+              <div class="field mt-16"><label>Piezas con defecto</label>
+                <input type="number" id="c-14k-malas" placeholder="0" min="0" step="1" value="0" onchange="calcularPreview()"
+                  /></div>
+              <div class="field mt-16"><label>Peso total (g)</label>
+                <input type="number" id="c-14k-peso" placeholder="0.00" min="0" step="0.01" value="0" onchange="calcularPreview()" /></div>
+            </div>
+            <div class="karat-card">
+              <h4>🟡 Oro 18k</h4>
+              <div class="field"><label>Piezas producidas</label>
+                <input type="number" id="c-18k-piezas" placeholder="0" min="0" step="1" value="0" onchange="calcularPreview()" /></div>
+              <div class="field mt-16"><label>Piezas con defecto</label>
+                <input type="number" id="c-18k-malas" placeholder="0" min="0" step="1" value="0" onchange="calcularPreview()"
+                  /></div>
+              <div class="field mt-16"><label>Peso total (g)</label>
+                <input type="number" id="c-18k-peso" placeholder="0.00" min="0" step="0.01" value="0" onchange="calcularPreview()" /></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="c-preview" class="result-box" style="display:none"></div>
+
+        <div class="actions">
+          <button class="btn btn-gold" onclick="completarTanda()">Guardar Producción</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TODAS LAS TANDAS ── -->
+    <div id="page-tandas" class="page">
+      <h2>Todas las Tandas</h2>
+      <div id="all-list" class="tanda-list"></div>
+    </div>
+
+    <!-- ── CALCULADORA ── -->
+    <div id="page-calculadora" class="page">
+      <h2>Calculadora de Material</h2>
+      <p style="color:var(--muted);font-size:13px;margin-top:-16px;margin-bottom:24px">
+        Fórmula: gramos de oro = quilate × peso de la resina
+      </p>
+
+      <!-- Parámetros compartidos -->
+      <div class="card" style="margin-bottom:20px">
+        <h3>Parámetros Generales</h3>
+        <div class="grid-2">
+          <div class="field">
+            <label>Factor de desperdicio / bebedero (%)</label>
+            <input type="number" id="calc-desperdicio" placeholder="10" min="0" max="100"
+              step="1" value="10" oninput="calcularMaterial()" />
+          </div>
+          <div class="field">
+            <label style="display:flex;align-items:center;gap:8px">
+              Precio por gramo de oro 24k ($)
+              <button class="btn btn-outline btn-sm"
+                style="padding:2px 10px;font-size:11px;font-weight:600"
+                onclick="usarPrecioUltimaTanda()">↑ Última tanda</button>
+            </label>
+            <input type="number" id="calc-precio" placeholder="0.00" min="0" step="0.01"
+              oninput="calcularMaterial()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Una calculadora por kilate -->
+      <div class="karat-grid">
+
+        <div class="karat-card" style="border-top:3px solid var(--gold)">
+          <h4 style="font-size:15px;margin-bottom:16px">🔸 Oro 10k</h4>
+          <div class="field">
+            <label>Peso de resina / cera (g)</label>
+            <input type="number" id="calc-10-resina" placeholder="0.00" min="0" step="0.01"
+              oninput="calcularMaterial()" />
+          </div>
+          <div class="field mt-16">
+            <label>Número de piezas</label>
+            <input type="number" id="calc-10-piezas" placeholder="1" min="1" step="1" value="1"
+              oninput="calcularMaterial()" />
+          </div>
+          <div id="calc-10-result"></div>
+        </div>
+
+        <div class="karat-card" style="border-top:3px solid #d4b45a">
+          <h4 style="font-size:15px;margin-bottom:16px">🔶 Oro 14k</h4>
+          <div class="field">
+            <label>Peso de resina / cera (g)</label>
+            <input type="number" id="calc-14-resina" placeholder="0.00" min="0" step="0.01"
+              oninput="calcularMaterial()" />
+          </div>
+          <div class="field mt-16">
+            <label>Número de piezas</label>
+            <input type="number" id="calc-14-piezas" placeholder="1" min="1" step="1" value="1"
+              oninput="calcularMaterial()" />
+          </div>
+          <div id="calc-14-result"></div>
+        </div>
+
+        <div class="karat-card" style="border-top:3px solid var(--gold-lt)">
+          <h4 style="font-size:15px;margin-bottom:16px">🟡 Oro 18k</h4>
+          <div class="field">
+            <label>Peso de resina / cera (g)</label>
+            <input type="number" id="calc-18-resina" placeholder="0.00" min="0" step="0.01"
+              oninput="calcularMaterial()" />
+          </div>
+          <div class="field mt-16">
+            <label>Número de piezas</label>
+            <input type="number" id="calc-18-piezas" placeholder="1" min="1" step="1" value="1"
+              oninput="calcularMaterial()" />
+          </div>
+          <div id="calc-18-result"></div>
+        </div>
+
+      </div>
+
+      <div id="calc-total"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── MODAL EDITAR TANDA ── -->
+<div class="overlay" id="edit-overlay" onclick="closeEditModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="edit-modal-title">Editar Tanda</h2>
+      <button class="close-btn" onclick="closeEditModal()">×</button>
+    </div>
+    <div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Fecha</label>
+          <input type="date" id="e-fecha" />
+        </div>
+        <div class="field" style="opacity:.5">
+          <label>Código (no editable)</label>
+          <input type="text" id="e-codigo" readonly />
+        </div>
+      </div>
+      <hr class="sep">
+      <div class="grid-2">
+        <div class="field">
+          <label>Gramos pedidos (24k)</label>
+          <input type="number" id="e-pedido" min="0" step="0.01" />
+        </div>
+        <div class="field">
+          <label>Costo total ($)</label>
+          <input type="number" id="e-costo" min="0" step="0.01" />
+        </div>
+        <div class="field">
+          <label>Gramos reciclados</label>
+          <input type="number" id="e-reciclado" min="0" step="0.01" value="0" oninput="toggleEditKilate()" />
+        </div>
+        <div class="field" id="e-kilate-field" style="display:none">
+          <label>Kilataje del reciclado</label>
+          <input type="number" id="e-kilate-recic" min="1" max="24" step="0.01" />
+        </div>
+      </div>
+      <div id="edit-error" style="display:none;background:rgba(224,92,92,.15);border:1px solid var(--red);
+           border-radius:6px;padding:12px 16px;margin-top:12px;color:var(--red);font-size:14px;"></div>
+      <div class="actions" style="margin-top:20px">
+        <button class="btn btn-gold" onclick="guardarEdicion()">Guardar Cambios</button>
+        <button class="btn btn-outline" onclick="closeEditModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL DETALLE ── -->
+<div class="overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Detalle de Tanda</h2>
+      <button class="close-btn" onclick="closeModal()">×</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── constantes ────────────────────────────────────────────────────────────────
+const FACTOR    = { "10": 10/24, "14": 14/24, "18": 18/24, "24": 1 };
+const STORE_KEY = 'tandas_oro_v2';
+
+// ← Pega aquí la URL de tu Google Apps Script (ver apps_script.gs)
+// Si lo dejas vacío, los datos se guardan en localStorage del navegador.
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyIpBx4zDu0spVnIGNDYdhclNx-Nt__MfY24usj41mrpuHCEY8effqwYnwoqMrf8xGCqA/exec';
+
+// ── caché en memoria ──────────────────────────────────────────────────────────
+let _data = null;
+
+function getData() {
+  return _data || { tandas: [], ultimo: 0 };
+}
+
+async function initData() {
+  if (GAS_URL) {
+    try {
+      const r = await fetch(GAS_URL);
+      _data = await r.json();
+    } catch(e) {
+      _data = { tandas: [], ultimo: 0 };
+      console.warn('Google Sheets no disponible:', e.message);
+    }
+  } else {
+    try {
+      _data = JSON.parse(localStorage.getItem(STORE_KEY)) || { tandas: [], ultimo: 0 };
+    } catch {
+      _data = { tandas: [], ultimo: 0 };
+    }
+  }
+}
+
+function saveLocal() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(_data)); } catch {}
+}
+
+async function syncGuardar(tanda) {
+  if (!GAS_URL) { saveLocal(); return; }
+  const r = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'guardar', tanda }),
+  });
+  const res = await r.json();
+  if (!res.ok) throw new Error(res.error || 'Error en servidor');
+}
+
+async function syncCompletar(codigo, completacion) {
+  if (!GAS_URL) { saveLocal(); return; }
+  const r = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'completar', codigo, completacion }),
+  });
+  const res = await r.json();
+  if (!res.ok) throw new Error(res.error || 'Error en servidor');
+}
+
+// ── nav ───────────────────────────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  const idx = { dashboard: 0, nueva: 1, completar: 2, tandas: 3, reportes: 4, calculadora: 5 };
+  document.querySelectorAll('nav button')[idx[id]].classList.add('active');
+
+  if (id === 'dashboard')   renderDashboard();
+  if (id === 'completar')   refreshSelector();
+  if (id === 'tandas')      renderAllTandas();
+  if (id === 'reportes')    initReportes();
+  if (id === 'calculadora') calcularMaterial();
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+function genCodigo(data, fecha) {
+  data.ultimo++;
+  return `T-${fecha.replace(/-/g,'')} -${String(data.ultimo).padStart(3,'0')}`;
+}
+function fmtNum(n, dec=2)  { return Number(n).toFixed(dec); }
+function fmtMoney(n)       { return '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function today()           { return new Date().toISOString().slice(0,10); }
+function toast(msg, color='var(--green)') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = color;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function getEstado(t) {
+  if (t.completada) return t.estado === 'en_tienda' ? 'en_tienda' : 'completada';
+  return t.estado || 'pendiente';
+}
+
+function renderBadge(t) {
+  const estado = (t && typeof t === 'object') ? getEstado(t) : (t ? 'completada' : 'pendiente');
+  const map = {
+    pendiente:  ['badge-pending',   'Pendiente'],
+    en_vaciado: ['badge-vaciado',   'En Vaciado'],
+    completada: ['badge-completed', 'Completada'],
+    en_tienda:  ['badge-tienda',    'En Tienda'],
+  };
+  const [cls, label] = map[estado] || map.pendiente;
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  const d = getData();
+  const total      = d.tandas.length;
+  const pendientes = d.tandas.filter(t => !t.completada).length;
+  const completadas = d.tandas.filter(t => t.completada).length;
+
+  let totalPiezas = 0, totalMalas = 0;
+  d.tandas.filter(t => t.completada).forEach(t => {
+    ['10','14','18'].forEach(k => {
+      totalPiezas += t.completacion.produccion[k].piezas || 0;
+      totalMalas  += t.completacion.produccion[k].piezas_malas || 0;
+    });
+  });
+  const errorPct = totalPiezas > 0 ? (totalMalas / totalPiezas * 100) : 0;
+  const errorColor = errorPct === 0 ? 'var(--green)' : errorPct < 5 ? 'var(--gold)' : 'var(--red)';
+
+  document.getElementById('stats-strip').innerHTML = `
+    <div class="stat-card">
+      <div class="s-label">Total Tandas</div>
+      <div class="s-value">${total}</div>
+      <div class="s-sub">registradas</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-label">Pendientes</div>
+      <div class="s-value" style="color:var(--gold)">${pendientes}</div>
+      <div class="s-sub">en proceso</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-label">Completadas</div>
+      <div class="s-value" style="color:var(--green)">${completadas}</div>
+      <div class="s-sub">finalizadas</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-label">% Defectos</div>
+      <div class="s-value" style="color:${errorColor};font-size:22px">${fmtNum(errorPct,1)}%</div>
+      <div class="s-sub">${totalMalas} piezas malas / ${totalPiezas} total</div>
+    </div>
+  `;
+
+  const picker = document.getElementById('month-picker');
+  if (!picker.value) picker.value = today().slice(0, 7);
+  renderMensual(picker.value);
+
+  const recientes = [...d.tandas].reverse().slice(0, 5);
+  const el = document.getElementById('recent-list');
+  if (!recientes.length) {
+    el.innerHTML = `<div class="empty"><div class="big">🪙</div><p>No hay tandas aún.<br>Registra tu primera tanda para comenzar.</p></div>`;
+    return;
+  }
+  el.innerHTML = recientes.map(t => tandaItemHtml(t)).join('');
+}
+
+function renderMensual(yearMonth) {
+  const tandas = getData().tandas.filter(t => t.fecha.slice(0, 7) === yearMonth);
+  const completadas = tandas.filter(t => t.completada);
+
+  const oroComprado  = tandas.reduce((s, t) => s + t.oro_pedido_g, 0);
+  const costoTotal   = tandas.reduce((s, t) => s + t.costo_total, 0);
+  const costoProm    = oroComprado > 0 ? costoTotal / oroComprado : 0;
+
+  let piezas10 = 0, peso10 = 0;
+  let piezas14 = 0, peso14 = 0;
+  let piezas18 = 0, peso18 = 0;
+
+  completadas.forEach(t => {
+    const p = t.completacion.produccion;
+    piezas10 += p['10'].piezas; peso10 += p['10'].peso_g;
+    piezas14 += p['14'].piezas; peso14 += p['14'].peso_g;
+    piezas18 += p['18'].piezas; peso18 += p['18'].peso_g;
+  });
+
+  const totalPiezas = piezas10 + piezas14 + piezas18;
+  const totalPeso   = peso10 + peso14 + peso18;
+
+  let malas10=0, malas14=0, malas18=0;
+  completadas.forEach(t => {
+    const p = t.completacion.produccion;
+    malas10 += p['10'].piezas_malas || 0;
+    malas14 += p['14'].piezas_malas || 0;
+    malas18 += p['18'].piezas_malas || 0;
+  });
+  const totalMalas = malas10 + malas14 + malas18;
+  const mErrorPct  = totalPiezas > 0 ? (totalMalas / totalPiezas * 100) : 0;
+  const mErrColor  = mErrorPct === 0 ? 'var(--green)' : mErrorPct < 5 ? 'var(--gold)' : 'var(--red)';
+
+  document.getElementById('monthly-strip').innerHTML = `
+    <div class="stat-card">
+      <div class="s-label">Tandas del mes</div>
+      <div class="s-value">${tandas.length}</div>
+      <div class="s-sub">${completadas.length} completadas</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-label">Oro Comprado</div>
+      <div class="s-value" style="font-size:20px">${fmtNum(oroComprado)} g</div>
+      <div class="s-sub">Costo: ${fmtMoney(costoTotal)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-label">Costo prom. / g 24k</div>
+      <div class="s-value" style="font-size:20px">${fmtMoney(costoProm)}</div>
+      <div class="s-sub">&nbsp;</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-label">Piezas / % Defectos</div>
+      <div class="s-value">${totalPiezas}</div>
+      <div class="s-sub" style="color:${mErrColor}">${fmtNum(mErrorPct,1)}% defectos (${totalMalas} malas)</div>
+    </div>
+  `;
+
+  const ktEl = document.getElementById('monthly-karat-table');
+  if (!totalPiezas) { ktEl.innerHTML = ''; return; }
+
+  ktEl.innerHTML = `
+    <table class="prod-table" style="margin-top:4px">
+      <thead>
+        <tr><th>Kilataje</th><th style="text-align:right">Piezas</th><th style="text-align:right">Peso total (g)</th></tr>
+      </thead>
+      <tbody>
+        ${piezas10 > 0 ? `<tr><td class="kl">10k</td><td style="text-align:right">${piezas10}</td><td style="text-align:right">${fmtNum(peso10)}</td></tr>` : ''}
+        ${piezas14 > 0 ? `<tr><td class="kl">14k</td><td style="text-align:right">${piezas14}</td><td style="text-align:right">${fmtNum(peso14)}</td></tr>` : ''}
+        ${piezas18 > 0 ? `<tr><td class="kl">18k</td><td style="text-align:right">${piezas18}</td><td style="text-align:right">${fmtNum(peso18)}</td></tr>` : ''}
+        <tr style="font-weight:700;border-top:1px solid var(--border)">
+          <td>TOTAL</td>
+          <td style="text-align:right">${totalPiezas}</td>
+          <td style="text-align:right">${fmtNum(totalPeso)}</td>
+        </tr>
+      </tbody>
+    </table>`;
+}
+
+// ── REPORTES ──────────────────────────────────────────────────────────────────
+let _reporteTandas = [];
+
+function initReportes() {
+  const hoy = today();
+  const primerDia = hoy.slice(0, 7) + '-01';
+  if (!document.getElementById('r-desde').value) document.getElementById('r-desde').value = primerDia;
+  if (!document.getElementById('r-hasta').value) document.getElementById('r-hasta').value = hoy;
+  document.getElementById('reporte-preview').innerHTML = '';
+  document.getElementById('btn-csv').style.display = 'none';
+}
+
+function generarReporte() {
+  const desde = document.getElementById('r-desde').value;
+  const hasta = document.getElementById('r-hasta').value;
+  if (!desde || !hasta) { toast('Selecciona un rango de fechas', 'var(--red)'); return; }
+  if (desde > hasta)    { toast('La fecha "Desde" debe ser anterior a "Hasta"', 'var(--red)'); return; }
+
+  _reporteTandas = getData().tandas.filter(t => t.fecha >= desde && t.fecha <= hasta);
+  const el = document.getElementById('reporte-preview');
+
+  if (!_reporteTandas.length) {
+    el.innerHTML = `<div class="empty" style="padding:40px"><div class="big">📭</div><p>No hay tandas en ese rango de fechas.</p></div>`;
+    document.getElementById('btn-csv').style.display = 'none';
+    return;
+  }
+
+  const completadas = _reporteTandas.filter(t => t.completada);
+  const oroTotal    = _reporteTandas.reduce((s, t) => s + t.oro_pedido_g, 0);
+  const costoTotal  = _reporteTandas.reduce((s, t) => s + t.costo_total, 0);
+  let p10=0,w10=0, p14=0,w14=0, p18=0,w18=0;
+  completadas.forEach(t => {
+    const p = t.completacion.produccion;
+    p10 += p['10'].piezas; w10 += p['10'].peso_g;
+    p14 += p['14'].piezas; w14 += p['14'].peso_g;
+    p18 += p['18'].piezas; w18 += p['18'].peso_g;
+  });
+  const totalPiezas = p10 + p14 + p18;
+
+  el.innerHTML = `
+    <div class="card" style="margin-top:20px">
+      <h3>Resumen — ${desde} al ${hasta}</h3>
+      <div class="rpt-summary">
+        <div class="stat-card">
+          <div class="s-label">Tandas</div>
+          <div class="s-value">${_reporteTandas.length}</div>
+          <div class="s-sub">${completadas.length} completadas</div>
+        </div>
+        <div class="stat-card">
+          <div class="s-label">Oro Comprado</div>
+          <div class="s-value" style="font-size:20px">${fmtNum(oroTotal)} g</div>
+          <div class="s-sub">${fmtMoney(costoTotal)}</div>
+        </div>
+        <div class="stat-card">
+          <div class="s-label">Piezas Producidas</div>
+          <div class="s-value">${totalPiezas}</div>
+          <div class="s-sub">10k:${p10} · 14k:${p14} · 18k:${p18}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:0">
+      <h3>Detalle de Tandas</h3>
+      <div style="overflow-x:auto">
+        <table class="rpt-table">
+          <thead>
+            <tr>
+              <th>Código</th><th>Fecha</th><th>Oro (g)</th><th>Costo</th>
+              <th>Reciclado</th><th>Estado</th>
+              <th>Piezas 10k</th><th>Peso 10k</th>
+              <th>Piezas 14k</th><th>Peso 14k</th>
+              <th>Piezas 18k</th><th>Peso 18k</th>
+              <th>Sobrante (g)</th><th>Kilate Sob.</th><th>Rendim.</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${_reporteTandas.map(t => {
+              const c = t.completacion;
+              return `<tr>
+                <td class="kl">${t.codigo}</td>
+                <td>${t.fecha}</td>
+                <td style="text-align:right">${fmtNum(t.oro_pedido_g)}</td>
+                <td style="text-align:right">${fmtMoney(t.costo_total)}</td>
+                <td style="text-align:right">${t.oro_reciclado_g > 0 ? fmtNum(t.oro_reciclado_g)+' g ('+t.kilate_reciclado+'k)' : '—'}</td>
+                <td>${renderBadge(t)}</td>
+                ${c ? `
+                  <td style="text-align:center">${c.produccion['10'].piezas}</td>
+                  <td style="text-align:right">${fmtNum(c.produccion['10'].peso_g)}</td>
+                  <td style="text-align:center">${c.produccion['14'].piezas}</td>
+                  <td style="text-align:right">${fmtNum(c.produccion['14'].peso_g)}</td>
+                  <td style="text-align:center">${c.produccion['18'].piezas}</td>
+                  <td style="text-align:right">${fmtNum(c.produccion['18'].peso_g)}</td>
+                  <td style="text-align:right">${fmtNum(c.sobro_g,4)}</td>
+                  <td style="text-align:center">${c.kilate_sobro > 0 ? fmtNum(c.kilate_sobro,2)+'k' : '—'}</td>
+                  <td style="text-align:right">${fmtNum(c.rendimiento_pct,1)}%</td>
+                ` : '<td colspan="9" style="text-align:center;color:var(--muted)">Pendiente</td>'}
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+
+  document.getElementById('btn-csv').style.display = 'inline-flex';
+}
+
+function exportarCSV() {
+  if (!_reporteTandas.length) return;
+  const desde = document.getElementById('r-desde').value;
+  const hasta  = document.getElementById('r-hasta').value;
+
+  const cols = [
+    'Codigo','Fecha Registro','Oro Pedido (g)','Costo ($)','Costo/g 24k ($)',
+    'Oro Reciclado (g)','Kilataje Reciclado','Estado','Fecha Completado',
+    'Piezas 10k','Peso 10k (g)','Piezas 14k','Peso 14k (g)',
+    'Piezas 18k','Peso 18k (g)','Total Piezas','Total Producido (g)',
+    'Oro Sobrante (g)','Kilataje Sobrante','Rendimiento (%)'
+  ];
+
+  const rows = _reporteTandas.map(t => {
+    const c = t.completacion;
+    const tp = c ? c.produccion['10'].piezas + c.produccion['14'].piezas + c.produccion['18'].piezas : '';
+    return [
+      t.codigo, t.fecha,
+      t.oro_pedido_g, t.costo_total, t.costo_g_24k,
+      t.oro_reciclado_g, t.kilate_reciclado || '',
+      t.completada ? 'Completada' : 'Pendiente',
+      c ? c.fecha_completacion : '',
+      c ? c.produccion['10'].piezas : '', c ? c.produccion['10'].peso_g : '',
+      c ? c.produccion['14'].piezas : '', c ? c.produccion['14'].peso_g : '',
+      c ? c.produccion['18'].piezas : '', c ? c.produccion['18'].peso_g : '',
+      tp,
+      c ? c.total_salida_g : '',
+      c ? c.sobro_g : '',
+      c ? (c.kilate_sobro > 0 ? c.kilate_sobro : '') : '',
+      c ? c.rendimiento_pct : ''
+    ];
+  });
+
+  const csv = [cols, ...rows]
+    .map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
+
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,﻿' + encodeURIComponent(csv);
+  a.download = `reporte_oro_${desde}_${hasta}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  toast('CSV exportado ✓');
+}
+
+// ── TODAS LAS TANDAS ──────────────────────────────────────────────────────────
+function renderAllTandas() {
+  const d = getData();
+  const el = document.getElementById('all-list');
+  if (!d.tandas.length) {
+    el.innerHTML = `<div class="empty"><div class="big">📋</div><p>No hay tandas registradas.</p></div>`;
+    return;
+  }
+  el.innerHTML = [...d.tandas].reverse().map(t => tandaItemHtml(t)).join('');
+}
+
+function tandaItemHtml(t) {
+  const total = t.oro_pedido_g + t.oro_reciclado_g;
+  const reciclInfo = t.oro_reciclado_g > 0 ? ` · Recic. ${t.kilate_reciclado}k` : '';
+  const cid = CSS.escape(t.codigo);
+  return `
+    <div id="item-${cid}">
+      <div class="tanda-item">
+        <div class="meta" onclick="openDetalle('${t.codigo}')" style="flex:1;cursor:pointer;min-width:0">
+          <span class="code">${t.codigo}</span>
+          <span class="sub">${t.fecha} &nbsp;·&nbsp; 24k comprado${reciclInfo}</span>
+        </div>
+        <div class="right">
+          <span class="weight">${fmtNum(total)} g</span>
+          ${renderBadge(t)}
+          <button class="btn-delete" title="Editar tanda" style="color:var(--gold-dk)"
+            onclick="editarTanda('${t.codigo}')">✏️</button>
+          <button class="btn-delete" title="Eliminar tanda"
+            onclick="pedirConfirmEliminar('${t.codigo}')">🗑</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function pedirConfirmEliminar(codigo) {
+  if (!window.confirm(`¿Eliminar la tanda ${codigo}?\nEsta acción no se puede deshacer.`)) return;
+  eliminarTanda(codigo);
+}
+
+async function eliminarTanda(codigo) {
+  const d = getData();
+  const idx = d.tandas.findIndex(x => x.codigo === codigo);
+  if (idx === -1) { toast('Tanda no encontrada', 'var(--red)'); return; }
+
+  d.tandas.splice(idx, 1);
+  saveLocal();
+  renderAllTandas();
+  renderDashboard();
+
+  if (GAS_URL) {
+    try { await syncEliminar(codigo); } catch(e) { /* ya está borrada localmente */ }
+  }
+  toast(`Tanda ${codigo} eliminada ✓`);
+}
+
+async function syncEliminar(codigo) {
+  if (!GAS_URL) { saveLocal(); return; }
+  const r = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'eliminar', codigo }),
+  });
+  const res = await r.json();
+  if (!res.ok) throw new Error(res.error || 'Error en servidor');
+}
+
+// ── NUEVA TANDA ───────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('n-fecha').value = today();
+  ['n-pedido','n-costo','n-reciclado','n-kilate-recic'].forEach(id =>
+    document.getElementById(id).addEventListener('input', actualizarPreviewNueva));
+
+  const statusEl = document.getElementById('gs-status');
+  if (GAS_URL) {
+    statusEl.textContent = '⏳ Cargando datos desde Google Sheets…';
+    statusEl.style.display = 'block';
+    await initData();
+    statusEl.style.display = 'none';
+  } else {
+    await initData();
+    statusEl.textContent = '💾 Guardando en este navegador. Configura GAS_URL en el HTML para usar Google Sheets.';
+    statusEl.style.display = 'block';
+  }
+  renderDashboard();
+});
+
+function toggleKilateRecic() {
+  const recic = parseFloat(document.getElementById('n-reciclado').value) || 0;
+  const field = document.getElementById('n-kilate-recic-field');
+  field.style.display = recic > 0 ? 'block' : 'none';
+  if (recic === 0) document.getElementById('n-kilate-recic').value = '';
+  actualizarPreviewNueva();
+}
+
+function actualizarPreviewNueva() {
+  const pedido      = parseFloat(document.getElementById('n-pedido').value) || 0;
+  const costo       = parseFloat(document.getElementById('n-costo').value) || 0;
+  const recic       = parseFloat(document.getElementById('n-reciclado').value) || 0;
+  const kilateRecic = parseFloat(document.getElementById('n-kilate-recic').value) || 0;
+  const box         = document.getElementById('nueva-preview');
+
+  if (!pedido || !costo) { box.style.display = 'none'; return; }
+
+  const cg24k     = costo / pedido;   // pedido siempre es 24k
+  const finoRecic = recic * (kilateRecic / 24);
+  const totalDisp = pedido + recic;
+
+  let reciclRow = '';
+  if (recic > 0 && kilateRecic > 0) {
+    reciclRow = `<div class="result-row"><span class="label">Oro fino del reciclado (${kilateRecic}k)</span><span class="value">${fmtNum(finoRecic)} g</span></div>`;
+  }
+
+  box.style.display = 'block';
+  box.innerHTML = `
+    <h3>Vista Previa</h3>
+    <div class="result-row"><span class="label">Costo por gramo de oro 24k</span><span class="value gold">${fmtMoney(cg24k)}/g</span></div>
+    ${reciclRow}
+    <div class="result-row"><span class="label">Total disponible para producción</span><span class="value">${fmtNum(totalDisp)} g</span></div>
+  `;
+}
+
+function mostrarErrorForm(msg) {
+  const el = document.getElementById('form-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function registrarTanda() {
+  ['n-pedido','n-costo','n-kilate-recic'].forEach(id =>
+    document.getElementById(id).style.borderColor = '');
+  document.getElementById('form-error').style.display = 'none';
+
+  const fecha       = document.getElementById('n-fecha').value;
+  const pedidoRaw   = document.getElementById('n-pedido').value;
+  const costoRaw    = document.getElementById('n-costo').value;
+  const recicRaw    = document.getElementById('n-reciclado').value;
+  const kilateRaw   = document.getElementById('n-kilate-recic').value;
+
+  const pedido      = parseFloat(pedidoRaw);
+  const costo       = parseFloat(costoRaw);
+  const recic       = parseFloat(recicRaw) || 0;
+  const kilateRecic = parseFloat(kilateRaw) || 0;
+
+  if (!fecha) { mostrarErrorForm('Selecciona una fecha.'); return; }
+  if (!pedidoRaw || isNaN(pedido) || pedido <= 0) {
+    document.getElementById('n-pedido').style.borderColor = 'var(--red)';
+    mostrarErrorForm('Ingresa los gramos de oro pedido (debe ser mayor a 0).');
+    return;
+  }
+  if (!costoRaw || isNaN(costo) || costo <= 0) {
+    document.getElementById('n-costo').style.borderColor = 'var(--red)';
+    mostrarErrorForm('Ingresa el costo total del oro (debe ser mayor a 0).');
+    return;
+  }
+  if (recic > 0 && (!kilateRaw || isNaN(kilateRecic) || kilateRecic <= 0)) {
+    document.getElementById('n-kilate-recic').style.borderColor = 'var(--red)';
+    mostrarErrorForm('Ingresa el kilataje del oro reciclado.');
+    return;
+  }
+
+  const btn = document.querySelector('#page-nueva .btn-gold');
+  btn.textContent = 'Guardando…';
+  btn.disabled = true;
+
+  try {
+    const d = getData();
+    const tanda = {
+      codigo:              `ORO_${String(++d.ultimo).padStart(8,'0')}`,
+      fecha,
+      oro_pedido_g:        pedido,
+      kilate_pedido:       '24',
+      costo_total:         costo,
+      oro_fino_comprado_g: +pedido.toFixed(4),
+      costo_g_24k:         +(costo / pedido).toFixed(4),
+      oro_reciclado_g:     recic,
+      kilate_reciclado:    kilateRecic,
+      estado:              'pendiente',
+      completada:          false,
+      completacion:        null,
+    };
+    d.tandas.push(tanda);
+    await syncGuardar(tanda);
+    toast(`Tanda ${tanda.codigo} registrada ✓`);
+    limpiarNueva();
+    showPage('dashboard');
+  } catch(e) {
+    mostrarErrorForm('Error al guardar: ' + e.message);
+  } finally {
+    btn.textContent = 'Guardar Tanda';
+    btn.disabled = false;
+  }
+}
+
+function limpiarNueva() {
+  ['n-pedido','n-costo','n-kilate-recic'].forEach(id =>
+    document.getElementById(id).style.borderColor = '');
+  document.getElementById('form-error').style.display  = 'none';
+  document.getElementById('n-pedido').value             = '';
+  document.getElementById('n-costo').value              = '';
+  document.getElementById('n-reciclado').value          = '0';
+  document.getElementById('n-kilate-recic').value       = '';
+  document.getElementById('n-kilate-recic-field').style.display = 'none';
+  document.getElementById('n-fecha').value              = today();
+  document.getElementById('nueva-preview').style.display = 'none';
+}
+
+// ── COMPLETAR TANDA ───────────────────────────────────────────────────────────
+function refreshSelector() {
+  const d = getData();
+  const sel = document.getElementById('c-selector');
+  sel.innerHTML = '<option value="">-- Selecciona --</option>';
+  d.tandas.filter(t => !t.completada).forEach(t => {
+    sel.innerHTML += `<option value="${t.codigo}">${t.codigo}  (${t.fecha})</option>`;
+  });
+  document.getElementById('c-info').style.display = 'none';
+  document.getElementById('c-form').style.display = 'none';
+}
+
+function cargarTandaParaCompletar() {
+  const codigo = document.getElementById('c-selector').value;
+  const infoEl = document.getElementById('c-info');
+  const formEl = document.getElementById('c-form');
+
+  if (!codigo) { infoEl.style.display = 'none'; formEl.style.display = 'none'; return; }
+
+  const t = getData().tandas.find(x => x.codigo === codigo);
+  if (!t) return;
+
+  const total = t.oro_pedido_g + t.oro_reciclado_g;
+  const reciclLabel = t.oro_reciclado_g > 0
+    ? `${fmtNum(t.oro_reciclado_g)} g (${t.kilate_reciclado}k)`
+    : '—';
+  infoEl.style.display = 'block';
+  infoEl.innerHTML = `
+    <div class="result-row"><span class="label">Fecha registro</span><span class="value">${t.fecha}</span></div>
+    <div class="result-row"><span class="label">Oro pedido</span><span class="value">${fmtNum(t.oro_pedido_g)} g (24k)</span></div>
+    <div class="result-row"><span class="label">Oro reciclado</span><span class="value">${reciclLabel}</span></div>
+    <div class="result-row"><span class="label">Total disponible</span><span class="value gold">${fmtNum(total)} g</span></div>
+    <div class="result-row"><span class="label">Costo / g de oro 24k</span><span class="value gold">${fmtMoney(t.costo_g_24k)}</span></div>
+  `;
+
+  ['10k','14k','18k'].forEach(k => {
+    document.getElementById(`c-${k}-piezas`).value = 0;
+    document.getElementById(`c-${k}-malas`).value  = 0;
+    document.getElementById(`c-${k}-peso`).value   = 0;
+  });
+  document.getElementById('c-preview').style.display = 'none';
+  formEl.style.display = 'block';
+}
+
+function calcularPreview() {
+  const codigo = document.getElementById('c-selector').value;
+  if (!codigo) return;
+  const t = getData().tandas.find(x => x.codigo === codigo);
+  if (!t) return;
+
+  const totalDisp  = t.oro_pedido_g + t.oro_reciclado_g;
+  // fino total de entrada: pedido es 24k + reciclado a su kilataje
+  const finoEntrada = t.oro_pedido_g + t.oro_reciclado_g * ((t.kilate_reciclado || 0) / 24);
+
+  const produccion = {};
+  let totalSalida = 0, totalFino = 0, totalPiezas = 0;
+
+  ['10','14','18'].forEach(k => {
+    const piezas = parseInt(document.getElementById(`c-${k}k-piezas`).value) || 0;
+    const malas  = parseInt(document.getElementById(`c-${k}k-malas`).value)  || 0;
+    const peso   = parseFloat(document.getElementById(`c-${k}k-peso`).value) || 0;
+    const fino   = peso * FACTOR[k];
+    produccion[k] = { piezas, malas, peso, fino };
+    totalSalida += peso;
+    totalFino   += fino;
+    totalPiezas += piezas;
+  });
+
+  if (!totalSalida) { document.getElementById('c-preview').style.display = 'none'; return; }
+
+  const sobro       = totalDisp - totalSalida;
+  const finoSobro   = finoEntrada - totalFino;
+  const kilateSobro = sobro > 0.0001 ? (finoSobro / sobro) * 24 : 0;
+  const rendimiento = (totalSalida / totalDisp * 100);
+  const sobroColor  = sobro >= 0 ? 'green' : 'red';
+
+  const sobroRow = sobro > 0.0001 ? `
+    <div class="result-row" style="background:rgba(201,168,76,.06);padding:10px 12px;border-radius:6px;margin-top:4px">
+      <span class="label" style="font-weight:600;color:var(--text)">Kilataje del sobrante (para reciclar)</span>
+      <span class="value gold" style="font-size:16px">${fmtNum(kilateSobro, 2)}k</span>
+    </div>` : '';
+
+  const box = document.getElementById('c-preview');
+  box.style.display = 'block';
+  box.innerHTML = `
+    <h3>Resumen de Producción</h3>
+    <table class="prod-table">
+      <thead><tr><th>Kilate</th><th>Piezas</th><th>Defectos</th><th>Peso (g)</th><th>Oro fino (g)</th></tr></thead>
+      <tbody>
+        ${['10','14','18'].filter(k => produccion[k].peso > 0).map(k => `
+          <tr>
+            <td class="kl">${k}k</td>
+            <td>${produccion[k].piezas}</td>
+            <td style="color:var(--red)">${produccion[k].malas > 0 ? produccion[k].malas : '—'}</td>
+            <td>${fmtNum(produccion[k].peso)}</td>
+            <td>${fmtNum(produccion[k].fino)}</td>
+          </tr>`).join('')}
+        <tr style="font-weight:600">
+          <td>TOTAL</td><td>${totalPiezas}</td>
+          <td style="color:var(--red)">${['10','14','18'].reduce((s,k)=>s+(produccion[k].malas||0),0)||'—'}</td>
+          <td>${fmtNum(totalSalida)}</td>
+          <td>${fmtNum(totalFino)}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="result-row" style="margin-top:12px">
+      <span class="label">Oro disponible</span>
+      <span class="value">${fmtNum(totalDisp)} g</span>
+    </div>
+    <div class="result-row">
+      <span class="label">Oro que sobró</span>
+      <span class="value ${sobroColor}">${fmtNum(sobro, 4)} g</span>
+    </div>
+    <div class="result-row">
+      <span class="label">Rendimiento</span>
+      <span class="value gold">${fmtNum(rendimiento, 1)}%</span>
+    </div>
+    ${sobroRow}
+  `;
+}
+
+async function completarTanda() {
+  const codigo = document.getElementById('c-selector').value;
+  if (!codigo) { toast('Selecciona una tanda', 'var(--red)'); return; }
+
+  const d = getData();
+  const t = d.tandas.find(x => x.codigo === codigo);
+  if (!t) return;
+
+  const totalDisp   = t.oro_pedido_g + t.oro_reciclado_g;
+  const finoEntrada = t.oro_pedido_g + t.oro_reciclado_g * ((t.kilate_reciclado || 0) / 24);
+  const produccion  = {};
+  let totalSalida = 0, totalFino = 0;
+
+  ['10','14','18'].forEach(k => {
+    const piezas = parseInt(document.getElementById(`c-${k}k-piezas`).value) || 0;
+    const malas  = parseInt(document.getElementById(`c-${k}k-malas`).value)  || 0;
+    const peso   = parseFloat(document.getElementById(`c-${k}k-peso`).value) || 0;
+    const fino   = peso * FACTOR[k];
+    produccion[k] = { piezas, piezas_malas: malas, peso_g: +peso.toFixed(4), oro_fino_g: +fino.toFixed(4) };
+    totalSalida += peso;
+    totalFino   += fino;
+  });
+
+
+  const sobro_g     = +(totalDisp - totalSalida).toFixed(4);
+  const finoSobro   = finoEntrada - totalFino;
+  const kilateSobro = sobro_g > 0.0001 ? +((finoSobro / sobro_g) * 24).toFixed(2) : 0;
+
+  const completacion = {
+    fecha_completacion:  today(),
+    produccion,
+    total_salida_g:      +totalSalida.toFixed(4),
+    total_fino_salida_g: +totalFino.toFixed(4),
+    sobro_g,
+    kilate_sobro:        kilateSobro,
+    rendimiento_pct:     +(totalSalida / totalDisp * 100).toFixed(2),
+  };
+
+  t.completada   = true;
+  t.estado       = 'completada';
+  t.completacion = completacion;
+
+  const btn = document.querySelector('#c-form .btn-gold');
+  btn.textContent = 'Guardando…';
+  btn.disabled = true;
+
+  try {
+    await syncCompletar(codigo, completacion);
+    toast(`Tanda ${codigo} completada ✓`);
+    refreshSelector();
+    showPage('tandas');
+  } catch(e) {
+    toast('Error al guardar: ' + e.message, 'var(--red)');
+    t.completada = false;
+    t.completacion = null;
+  } finally {
+    btn.textContent = 'Guardar Producción';
+    btn.disabled = false;
+  }
+}
+
+// ── MODAL DETALLE ─────────────────────────────────────────────────────────────
+function openDetalle(codigo) {
+  const t = getData().tandas.find(x => x.codigo === codigo);
+  if (!t) return;
+
+  const total = t.oro_pedido_g + t.oro_reciclado_g;
+  document.getElementById('modal-title').textContent = `Tanda ${t.codigo}`;
+
+  let html = `
+    <h3>Información General</h3>
+    <div class="result-row"><span class="label">Fecha registro</span><span class="value">${t.fecha}</span></div>
+    <div class="result-row"><span class="label">Oro pedido</span><span class="value">${fmtNum(t.oro_pedido_g)} g (24k)</span></div>
+    <div class="result-row"><span class="label">Costo total</span><span class="value">${fmtMoney(t.costo_total)}</span></div>
+    <div class="result-row"><span class="label">Costo / g de oro 24k</span><span class="value gold">${fmtMoney(t.costo_g_24k)}</span></div>
+    <div class="result-row"><span class="label">Oro reciclado</span><span class="value">${t.oro_reciclado_g > 0 ? `${fmtNum(t.oro_reciclado_g)} g (${t.kilate_reciclado}k)` : '—'}</span></div>
+    <div class="result-row"><span class="label">Total disponible</span><span class="value gold">${fmtNum(total)} g</span></div>
+    <div class="result-row"><span class="label">Estado</span><span>${renderBadge(t)}</span></div>
+  `;
+
+  const estado = getEstado(t);
+  if (!t.completada) {
+    html += `
+      <div style="margin-top:4px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Cambiar estado</div>
+        <div class="state-bar">
+          <button class="state-btn ${estado==='pendiente'?'active-p':''}"
+            onclick="cambiarEstado('${t.codigo}','pendiente')">Pendiente</button>
+          <button class="state-btn ${estado==='en_vaciado'?'active-v':''}"
+            onclick="cambiarEstado('${t.codigo}','en_vaciado')">En Vaciado</button>
+        </div>
+      </div>`;
+  } else {
+    html += `
+      <div style="margin-top:4px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Cambiar estado</div>
+        <div class="state-bar">
+          <button class="state-btn ${estado==='completada'?'active-c':''}"
+            onclick="cambiarEstado('${t.codigo}','completada')">Completada</button>
+          <button class="state-btn ${estado==='en_tienda'?'active-t':''}"
+            onclick="cambiarEstado('${t.codigo}','en_tienda')">En Tienda</button>
+        </div>
+      </div>`;
+  }
+
+  if (t.completada) {
+    const c = t.completacion;
+    const sobroColor = c.sobro_g >= 0 ? 'green' : 'red';
+    html += `
+      <hr class="sep">
+      <h3>Producción — ${c.fecha_completacion}</h3>
+      <table class="prod-table">
+        <thead><tr><th>Kilate</th><th>Piezas</th><th>Defectos</th><th>Peso (g)</th><th>Oro fino (g)</th></tr></thead>
+        <tbody>
+          ${['10','14','18'].filter(k => c.produccion[k].peso_g > 0).map(k => `
+            <tr>
+              <td class="kl">${k}k</td>
+              <td>${c.produccion[k].piezas}</td>
+              <td style="color:var(--red)">${(c.produccion[k].piezas_malas||0) > 0 ? c.produccion[k].piezas_malas : '—'}</td>
+              <td>${fmtNum(c.produccion[k].peso_g)}</td>
+              <td>${fmtNum(c.produccion[k].oro_fino_g)}</td>
+            </tr>`).join('')}
+          <tr style="font-weight:600">
+            <td>TOTAL</td>
+            <td>${['10','14','18'].reduce((s,k) => s + c.produccion[k].piezas, 0)}</td>
+            <td style="color:var(--red)">${['10','14','18'].reduce((s,k)=>s+(c.produccion[k].piezas_malas||0),0)||'—'}</td>
+            <td>${fmtNum(c.total_salida_g)}</td>
+            <td>${fmtNum(c.total_fino_salida_g)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="result-row" style="margin-top:12px">
+        <span class="label">Oro que sobró</span>
+        <span class="value ${sobroColor}">${fmtNum(c.sobro_g, 4)} g</span>
+      </div>
+      ${c.sobro_g > 0.0001 ? `
+      <div class="result-row">
+        <span class="label">Kilataje del sobrante (para reciclar)</span>
+        <span class="value gold">${fmtNum(c.kilate_sobro, 2)}k</span>
+      </div>` : ''}
+      <div class="result-row">
+        <span class="label">Rendimiento</span>
+        <span class="value gold">${fmtNum(c.rendimiento_pct, 1)}%</span>
+      </div>
+    `;
+  } else {
+    html += `
+      <hr class="sep">
+      <div class="actions">
+        <button class="btn btn-gold btn-sm" onclick="closeModal();showPage('completar');
+          setTimeout(()=>{document.getElementById('c-selector').value='${t.codigo}';cargarTandaParaCompletar();},50)">
+          Completar esta tanda →
+        </button>
+      </div>`;
+  }
+
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modal-overlay'))
+    document.getElementById('modal-overlay').classList.remove('open');
+}
+
+// ── EDITAR TANDA ──────────────────────────────────────────────────────────────
+let _editCodigo = null;
+
+function editarTanda(codigo) {
+  const t = getData().tandas.find(x => x.codigo === codigo);
+  if (!t) return;
+  _editCodigo = codigo;
+  document.getElementById('edit-modal-title').textContent = `Editar ${codigo}`;
+  document.getElementById('e-codigo').value      = codigo;
+  document.getElementById('e-fecha').value       = t.fecha;
+  document.getElementById('e-pedido').value      = t.oro_pedido_g;
+  document.getElementById('e-costo').value       = t.costo_total;
+  document.getElementById('e-reciclado').value   = t.oro_reciclado_g || 0;
+  document.getElementById('e-kilate-recic').value = t.kilate_reciclado || '';
+  document.getElementById('edit-error').style.display = 'none';
+  toggleEditKilate();
+  document.getElementById('edit-overlay').classList.add('open');
+}
+
+function toggleEditKilate() {
+  const recic = parseFloat(document.getElementById('e-reciclado').value) || 0;
+  document.getElementById('e-kilate-field').style.display = recic > 0 ? 'block' : 'none';
+}
+
+async function guardarEdicion() {
+  if (!_editCodigo) return;
+  const fecha  = document.getElementById('e-fecha').value;
+  const pedido = parseFloat(document.getElementById('e-pedido').value);
+  const costo  = parseFloat(document.getElementById('e-costo').value);
+  const recic  = parseFloat(document.getElementById('e-reciclado').value) || 0;
+  const kilate = parseFloat(document.getElementById('e-kilate-recic').value) || 0;
+
+  const errEl = document.getElementById('edit-error');
+  errEl.style.display = 'none';
+  if (!fecha || !pedido || pedido <= 0 || !costo || costo <= 0) {
+    errEl.textContent = 'Fecha, gramos y costo son requeridos y deben ser mayores a 0.';
+    errEl.style.display = 'block'; return;
+  }
+  if (recic > 0 && kilate <= 0) {
+    errEl.textContent = 'Ingresa el kilataje del oro reciclado.';
+    errEl.style.display = 'block'; return;
+  }
+
+  const d = getData();
+  const t = d.tandas.find(x => x.codigo === _editCodigo);
+  if (!t) return;
+
+  t.fecha              = fecha;
+  t.oro_pedido_g       = pedido;
+  t.costo_total        = costo;
+  t.oro_fino_comprado_g = +pedido.toFixed(4);
+  t.costo_g_24k        = +(costo / pedido).toFixed(4);
+  t.oro_reciclado_g    = recic;
+  t.kilate_reciclado   = kilate;
+
+  const btn = document.querySelector('#edit-overlay .btn-gold');
+  btn.textContent = 'Guardando…'; btn.disabled = true;
+  try {
+    await syncActualizar(t);
+    toast(`Tanda ${_editCodigo} actualizada ✓`);
+    closeEditModal();
+    renderAllTandas();
+    renderDashboard();
+  } catch(e) {
+    errEl.textContent = 'Error: ' + e.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.textContent = 'Guardar Cambios'; btn.disabled = false;
+  }
+}
+
+function closeEditModal(e) {
+  if (!e || e.target === document.getElementById('edit-overlay'))
+    document.getElementById('edit-overlay').classList.remove('open');
+}
+
+// ── CAMBIAR ESTADO ────────────────────────────────────────────────────────────
+async function cambiarEstado(codigo, nuevoEstado) {
+  const d = getData();
+  const t = d.tandas.find(x => x.codigo === codigo);
+  if (!t) return;
+  const anterior = t.estado;
+  t.estado = nuevoEstado;
+  try {
+    await syncActualizar(t);
+    const labels = { pendiente:'Pendiente', en_vaciado:'En Vaciado', completada:'Completada', en_tienda:'En Tienda' };
+    toast(`Estado: ${labels[nuevoEstado] || nuevoEstado}`);
+    renderAllTandas();
+    renderDashboard();
+    openDetalle(codigo);
+  } catch(e) {
+    t.estado = anterior;
+    toast('Error al cambiar estado: ' + e.message, 'var(--red)');
+  }
+}
+
+// ── CALCULADORA DE MATERIAL ───────────────────────────────────────────────────
+function calcularMaterial() {
+  const desperdicioP = parseFloat(document.getElementById('calc-desperdicio').value) || 0;
+  const precio       = parseFloat(document.getElementById('calc-precio').value)       || 0;
+  const factorDesp   = 1 + desperdicioP / 100;
+
+  const karats = [
+    { k: 10, id: '10', accent: 'var(--gold)' },
+    { k: 14, id: '14', accent: '#d4b45a' },
+    { k: 18, id: '18', accent: 'var(--gold-lt)' },
+  ];
+
+  let totalOroFino = 0, totalCosto = 0, activos = 0;
+
+  karats.forEach(({ k, id, accent }) => {
+    const resina   = parseFloat(document.getElementById(`calc-${id}-resina`).value) || 0;
+    const piezas   = parseInt(document.getElementById(`calc-${id}-piezas`).value)   || 1;
+    const resultEl = document.getElementById(`calc-${id}-result`);
+
+    if (!resina) { resultEl.innerHTML = ''; return; }
+    activos++;
+
+    const oroBase    = k * resina;
+    const oroConDesp = oroBase * factorDesp;
+    const oroFino    = oroConDesp * (k / 24);
+    const costo      = precio > 0 ? oroFino * precio : 0;
+    const costoPieza = costo / piezas;
+
+    totalOroFino += oroFino;
+    totalCosto   += costo;
+
+    let html = `<hr style="border:none;border-top:1px solid var(--border);margin:14px 0 10px">`;
+
+    html += `
+      <div class="result-row" style="padding:5px 0">
+        <span class="label">Oro ${k}k necesario</span>
+        <span class="value" style="color:${accent};font-size:20px;font-weight:700">${fmtNum(oroBase)} g</span>
+      </div>`;
+
+    if (desperdicioP > 0) {
+      html += `
+      <div class="result-row" style="padding:5px 0">
+        <span class="label">+ ${fmtNum(desperdicioP, 0)}% desperdicio</span>
+        <span class="value">${fmtNum(oroConDesp)} g</span>
+      </div>`;
+    }
+
+    html += `
+      <div class="result-row" style="padding:5px 0">
+        <span class="label">Equivalente 24k puro</span>
+        <span class="value">${fmtNum(oroFino)} g</span>
+      </div>`;
+
+    if (precio > 0) {
+      html += `
+      <div class="result-row" style="padding:5px 0;margin-top:4px;border-top:1px dashed var(--border)">
+        <span class="label">Costo estimado</span>
+        <span class="value gold">${fmtMoney(costo)}</span>
+      </div>`;
+      if (piezas > 1) {
+        html += `
+      <div class="result-row" style="padding:5px 0">
+        <span class="label">Costo por pieza</span>
+        <span class="value">${fmtMoney(costoPieza)}</span>
+      </div>`;
+      }
+    }
+
+    resultEl.innerHTML = html;
+  });
+
+  // Resumen combinado solo si hay 2 o más kilates activos
+  const totalEl = document.getElementById('calc-total');
+  if (activos < 2) { totalEl.innerHTML = ''; return; }
+
+  totalEl.innerHTML = `
+    <div class="card" style="margin-top:4px">
+      <h3>Total Combinado</h3>
+      <div class="result-row">
+        <span class="label">Oro 24k equivalente total</span>
+        <span class="value gold" style="font-size:20px;font-weight:700">${fmtNum(totalOroFino)} g</span>
+      </div>
+      ${precio > 0 ? `
+      <div class="result-row">
+        <span class="label">Costo total estimado</span>
+        <span class="value gold" style="font-size:20px;font-weight:700">${fmtMoney(totalCosto)}</span>
+      </div>` : ''}
+    </div>`;
+}
+
+function usarPrecioUltimaTanda() {
+  const tandas = getData().tandas.filter(t => t.costo_g_24k > 0);
+  if (!tandas.length) { toast('No hay tandas con precio registrado', 'var(--gold)'); return; }
+  const ultima = tandas[tandas.length - 1];
+  document.getElementById('calc-precio').value = ultima.costo_g_24k;
+  calcularMaterial();
+  toast(`Precio de ${ultima.codigo}: ${fmtMoney(ultima.costo_g_24k)}/g`);
+}
+
+// ── SYNC ACTUALIZAR ───────────────────────────────────────────────────────────
+async function syncActualizar(tanda) {
+  if (!GAS_URL) { saveLocal(); return; }
+  const r = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'actualizar', tanda }),
+  });
+  const res = await r.json();
+  if (!res.ok) throw new Error(res.error || 'Error en servidor');
+}
+</script>
+</body>
+</html>
