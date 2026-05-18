@@ -726,26 +726,27 @@ function saveLocal() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(_data)); } catch {}
 }
 
-async function syncGuardar(tanda) {
-  if (!GAS_URL) { saveLocal(); return; }
+async function gasPost(payload) {
   const r = await fetch(GAS_URL, {
     method: 'POST',
+    redirect: 'follow',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'guardar', tanda }),
+    body: JSON.stringify(payload),
   });
   const res = await r.json();
   if (!res.ok) throw new Error(res.error || 'Error en servidor');
 }
 
+async function syncGuardar(tanda) {
+  saveLocal();
+  if (!GAS_URL) return;
+  await gasPost({ action: 'guardar', tanda });
+}
+
 async function syncCompletar(codigo, completacion) {
-  if (!GAS_URL) { saveLocal(); return; }
-  const r = await fetch(GAS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'completar', codigo, completacion }),
-  });
-  const res = await r.json();
-  if (!res.ok) throw new Error(res.error || 'Error en servidor');
+  saveLocal();
+  if (!GAS_URL) return;
+  await gasPost({ action: 'completar', codigo, completacion });
 }
 
 // ── nav ───────────────────────────────────────────────────────────────────────
@@ -1134,14 +1135,9 @@ async function eliminarTanda(codigo) {
 }
 
 async function syncEliminar(codigo) {
-  if (!GAS_URL) { saveLocal(); return; }
-  const r = await fetch(GAS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'eliminar', codigo }),
-  });
-  const res = await r.json();
-  if (!res.ok) throw new Error(res.error || 'Error en servidor');
+  saveLocal();
+  if (!GAS_URL) return;
+  await gasPost({ action: 'eliminar', codigo });
 }
 
 // ── NUEVA TANDA ───────────────────────────────────────────────────────────────
@@ -1768,14 +1764,9 @@ function usarPrecioUltimaTanda() {
 
 // ── SYNC ACTUALIZAR ───────────────────────────────────────────────────────────
 async function syncActualizar(tanda) {
-  if (!GAS_URL) { saveLocal(); return; }
-  const r = await fetch(GAS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'actualizar', tanda }),
-  });
-  const res = await r.json();
-  if (!res.ok) throw new Error(res.error || 'Error en servidor');
+  saveLocal();
+  if (!GAS_URL) return;
+  await gasPost({ action: 'actualizar', tanda });
 }
 </script>
 </body>
