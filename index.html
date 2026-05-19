@@ -403,6 +403,10 @@
             <h3>Oro Puro Procesado por Tanda (g)</h3>
             <canvas id="chart-oro" height="220"></canvas>
           </div>
+          <div class="chart-card" style="grid-column: 1 / -1">
+            <h3>Tiempo Promedio de Entrega por Semana (días)</h3>
+            <canvas id="chart-tiempo" height="140"></canvas>
+          </div>
         </div>
       </div>
 
@@ -732,6 +736,13 @@ function finoTanda(t) {
   return (t.oro_pedido_g || 0) + (t.oro_reciclado_g || 0) * ((t.kilate_reciclado || 0) / 24);
 }
 
+// Días entre registro y completación
+function diasTanda(t) {
+  if (!t.completada || !t.completacion?.fecha_completacion) return null;
+  const ms = new Date(t.completacion.fecha_completacion) - new Date(t.fecha);
+  return Math.round(ms / 86400000);
+}
+
 async function sbFetch(method, path, body) {
   const headers = {
     'apikey': SB_KEY,
@@ -920,6 +931,9 @@ function renderMensual(yearMonth) {
   const mErrorPct  = totalPiezas > 0 ? (totalMalas / totalPiezas * 100) : 0;
   const mErrColor  = mErrorPct === 0 ? 'var(--green)' : mErrorPct < 5 ? 'var(--gold)' : 'var(--red)';
 
+  const diasArr = completadas.map(t => diasTanda(t)).filter(d => d !== null);
+  const diasProm = diasArr.length > 0 ? diasArr.reduce((s,d) => s+d, 0) / diasArr.length : null;
+
   document.getElementById('monthly-strip').innerHTML = `
     <div class="stat-card">
       <div class="s-label">Tandas del mes</div>
@@ -940,6 +954,11 @@ function renderMensual(yearMonth) {
       <div class="s-label">Piezas / % Defectos</div>
       <div class="s-value">${totalPiezas}</div>
       <div class="s-sub" style="color:${mErrColor}">${fmtNum(mErrorPct,1)}% defectos (${totalMalas} malas)</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-label">Tiempo prom. entrega</div>
+      <div class="s-value" style="font-size:20px">${diasProm !== null ? fmtNum(diasProm,1)+' días' : '—'}</div>
+      <div class="s-sub">${diasArr.length} tandas completadas</div>
     </div>
   `;
 
@@ -968,11 +987,12 @@ function renderMensual(yearMonth) {
     pesos:  [peso10,   peso14,   peso18],
     malas:  [malas10,  malas14,  malas18],
     tandas: completadas,
+    yearMonth,
   });
 }
 
 let _charts = {};
-function renderCharts({ piezas, pesos, malas, tandas }) {
+function renderCharts({ piezas, pesos, malas, tandas, yearMonth }) {
   document.getElementById('charts-section').style.display = 'grid';
   const gold = ['#c4a882','#d4b45a','#ede8e0'];
   const red  = 'rgba(224,92,92,.8)';
@@ -1026,6 +1046,27 @@ function renderCharts({ piezas, pesos, malas, tandas }) {
     labels: tandaLabels,
     datasets: [{ label: 'Oro puro (g)', data: oroPuro, backgroundColor: '#c4a882' }],
   });
+
+  // Tiempo promedio por semana del mes
+  const semanas = ['Semana 1\n(días 1-7)', 'Semana 2\n(días 8-14)', 'Semana 3\n(días 15-21)', 'Semana 4\n(días 22+)'];
+  const porSemana = [[], [], [], []];
+  tandas.forEach(t => {
+    const dias = diasTanda(t);
+    if (dias === null) return;
+    const fechaComp = t.completacion.fecha_completacion;
+    const dia = new Date(fechaComp).getDate();
+    const idx = dia <= 7 ? 0 : dia <= 14 ? 1 : dia <= 21 ? 2 : 3;
+    porSemana[idx].push(dias);
+  });
+  const promedios = porSemana.map(arr => arr.length > 0 ? +(arr.reduce((s,d) => s+d, 0) / arr.length).toFixed(1) : null);
+  mkChart('chart-tiempo', 'bar', {
+    labels: ['Sem. 1 (1-7)', 'Sem. 2 (8-14)', 'Sem. 3 (15-21)', 'Sem. 4 (22+)'],
+    datasets: [{
+      label: 'Días promedio',
+      data: promedios,
+      backgroundColor: promedios.map(v => v === null ? 'transparent' : v <= 7 ? 'rgba(106,175,130,.8)' : v <= 14 ? 'rgba(196,168,130,.8)' : 'rgba(224,92,92,.8)'),
+    }],
+  }, { plugins: { legend: { display: false } } });
 }
 
 // ── REPORTES ──────────────────────────────────────────────────────────────────
@@ -1575,6 +1616,7 @@ function openDetalle(codigo) {
     <div class="result-row"><span class="label">Oro reciclado</span><span class="value">${reciclStr}</span></div>
     <div class="result-row"><span class="label">Total oro puro disponible</span><span class="value gold">${fmtNum(fino)} g (24k equiv.)</span></div>
     <div class="result-row"><span class="label">Estado</span><span>${renderBadge(t)}</span></div>
+    ${diasTanda(t) !== null ? `<div class="result-row"><span class="label">Tiempo de entrega</span><span class="value gold">${diasTanda(t)} días</span></div>` : ''}
   `;
 
   const estado = getEstado(t);
