@@ -1137,9 +1137,7 @@ async function eliminarTanda(codigo) {
   renderAllTandas();
   renderDashboard();
 
-  if (GAS_URL) {
-    try { await syncEliminar(codigo); } catch(e) { /* ya está borrada localmente */ }
-  }
+  try { await syncEliminar(codigo); } catch(e) { /* ya está borrada localmente */ }
   toast(`Tanda ${codigo} eliminada ✓`);
 }
 
@@ -1244,7 +1242,7 @@ async function registrarTanda() {
   try {
     const d = getData();
     const tanda = {
-      codigo:              `ORO_${String(++d.ultimo).padStart(8,'0')}`,
+      codigo:              `ORO_${String(d.tandas.length + 1).padStart(8,'0')}`,
       fecha,
       oro_pedido_g:        pedido,
       kilate_pedido:       '24',
