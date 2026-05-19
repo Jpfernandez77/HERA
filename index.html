@@ -333,7 +333,12 @@
 
     .rpt-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
     @media (max-width: 600px) { .rpt-summary { grid-template-columns: repeat(2, 1fr); } }
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .chart-card h3 { margin-bottom: 16px; }
+  @media (max-width: 700px) { .charts-grid { grid-template-columns: 1fr; } }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -381,6 +386,24 @@
         </div>
         <div class="stats-4" id="monthly-strip" style="margin-bottom:16px"></div>
         <div id="monthly-karat-table"></div>
+        <div class="charts-grid" id="charts-section" style="display:none">
+          <div class="chart-card">
+            <h3>Piezas por Kilataje</h3>
+            <canvas id="chart-karat" height="220"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Calidad — Buenas vs Defectos</h3>
+            <canvas id="chart-calidad" height="220"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Peso Producido por Kilataje (g)</h3>
+            <canvas id="chart-peso" height="220"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Oro Puro Procesado por Tanda (g)</h3>
+            <canvas id="chart-oro" height="220"></canvas>
+          </div>
+        </div>
       </div>
 
       <h3>Tandas Recientes</h3>
@@ -704,6 +727,11 @@ function getData() {
   return _data || { tandas: [], ultimo: 0 };
 }
 
+// Oro puro (24k equiv) total de una tanda: pedido ya es 24k, reciclado se convierte
+function finoTanda(t) {
+  return (t.oro_pedido_g || 0) + (t.oro_reciclado_g || 0) * ((t.kilate_reciclado || 0) / 24);
+}
+
 async function sbFetch(method, path, body) {
   const headers = {
     'apikey': SB_KEY,
@@ -916,7 +944,7 @@ function renderMensual(yearMonth) {
   `;
 
   const ktEl = document.getElementById('monthly-karat-table');
-  if (!totalPiezas) { ktEl.innerHTML = ''; return; }
+  if (!totalPiezas) { ktEl.innerHTML = ''; document.getElementById('charts-section').style.display = 'none'; return; }
 
   ktEl.innerHTML = `
     <table class="prod-table" style="margin-top:4px">
@@ -934,6 +962,70 @@ function renderMensual(yearMonth) {
         </tr>
       </tbody>
     </table>`;
+
+  renderCharts({
+    piezas: [piezas10, piezas14, piezas18],
+    pesos:  [peso10,   peso14,   peso18],
+    malas:  [malas10,  malas14,  malas18],
+    tandas: completadas,
+  });
+}
+
+let _charts = {};
+function renderCharts({ piezas, pesos, malas, tandas }) {
+  document.getElementById('charts-section').style.display = 'grid';
+  const gold = ['#c4a882','#d4b45a','#ede8e0'];
+  const red  = 'rgba(224,92,92,.8)';
+  const green= 'rgba(106,175,130,.8)';
+  const labels = ['10k','14k','18k'];
+
+  function mkChart(id, type, data, opts = {}) {
+    if (_charts[id]) _charts[id].destroy();
+    const ctx = document.getElementById(id).getContext('2d');
+    _charts[id] = new Chart(ctx, {
+      type,
+      data,
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#ede8e0', font: { size: 12 } } } },
+        scales: type === 'bar' ? {
+          x: { ticks: { color: '#8a8070' }, grid: { color: 'rgba(255,255,255,.05)' } },
+          y: { ticks: { color: '#8a8070' }, grid: { color: 'rgba(255,255,255,.05)' }, beginAtZero: true },
+        } : undefined,
+        ...opts,
+      },
+    });
+  }
+
+  // Donut piezas por kilate
+  mkChart('chart-karat', 'doughnut', {
+    labels,
+    datasets: [{ data: piezas, backgroundColor: gold, borderWidth: 0 }],
+  });
+
+  // Barras calidad por kilate
+  const buenas = piezas.map((p, i) => p - malas[i]);
+  mkChart('chart-calidad', 'bar', {
+    labels,
+    datasets: [
+      { label: 'Buenas',    data: buenas, backgroundColor: green },
+      { label: 'Defectos',  data: malas,  backgroundColor: red },
+    ],
+  }, { plugins: { legend: { labels: { color: '#ede8e0' } } } });
+
+  // Barras peso por kilate
+  mkChart('chart-peso', 'bar', {
+    labels,
+    datasets: [{ label: 'Peso (g)', data: pesos, backgroundColor: gold }],
+  });
+
+  // Barras oro puro por tanda
+  const tandaLabels = tandas.map(t => t.codigo.replace('ORO_','#').replace(/^0+/,''));
+  const oroPuro = tandas.map(t => +finoTanda(t).toFixed(2));
+  mkChart('chart-oro', 'bar', {
+    labels: tandaLabels,
+    datasets: [{ label: 'Oro puro (g)', data: oroPuro, backgroundColor: '#c4a882' }],
+  });
 }
 
 // ── REPORTES ──────────────────────────────────────────────────────────────────
@@ -1100,7 +1192,7 @@ function renderAllTandas() {
 }
 
 function tandaItemHtml(t) {
-  const total = t.oro_pedido_g + t.oro_reciclado_g;
+  const total = finoTanda(t);
   const reciclInfo = t.oro_reciclado_g > 0 ? ` · Recic. ${t.kilate_reciclado}k` : '';
   const cid = CSS.escape(t.codigo);
   return `
@@ -1177,13 +1269,14 @@ function actualizarPreviewNueva() {
 
   if (!pedido || !costo) { box.style.display = 'none'; return; }
 
-  const cg24k     = costo / pedido;   // pedido siempre es 24k
+  const cg24k     = costo / pedido;
   const finoRecic = recic * (kilateRecic / 24);
-  const totalDisp = pedido + recic;
+  const totalFino = pedido + finoRecic;
 
   let reciclRow = '';
   if (recic > 0 && kilateRecic > 0) {
-    reciclRow = `<div class="result-row"><span class="label">Oro fino del reciclado (${kilateRecic}k)</span><span class="value">${fmtNum(finoRecic)} g</span></div>`;
+    reciclRow = `
+      <div class="result-row"><span class="label">Oro reciclado (${kilateRecic}k) → 24k equiv.</span><span class="value">${fmtNum(finoRecic)} g</span></div>`;
   }
 
   box.style.display = 'block';
@@ -1191,7 +1284,7 @@ function actualizarPreviewNueva() {
     <h3>Vista Previa</h3>
     <div class="result-row"><span class="label">Costo por gramo de oro 24k</span><span class="value gold">${fmtMoney(cg24k)}/g</span></div>
     ${reciclRow}
-    <div class="result-row"><span class="label">Total disponible para producción</span><span class="value">${fmtNum(totalDisp)} g</span></div>
+    <div class="result-row"><span class="label">Total oro puro disponible (24k equiv.)</span><span class="value gold">${fmtNum(totalFino)} g</span></div>
   `;
 }
 
@@ -1303,16 +1396,16 @@ function cargarTandaParaCompletar() {
   const t = getData().tandas.find(x => x.codigo === codigo);
   if (!t) return;
 
-  const total = t.oro_pedido_g + t.oro_reciclado_g;
+  const fino = finoTanda(t);
   const reciclLabel = t.oro_reciclado_g > 0
-    ? `${fmtNum(t.oro_reciclado_g)} g (${t.kilate_reciclado}k)`
+    ? `${fmtNum(t.oro_reciclado_g)} g (${t.kilate_reciclado}k) → ${fmtNum(t.oro_reciclado_g * (t.kilate_reciclado/24))} g puro`
     : '—';
   infoEl.style.display = 'block';
   infoEl.innerHTML = `
     <div class="result-row"><span class="label">Fecha registro</span><span class="value">${t.fecha}</span></div>
     <div class="result-row"><span class="label">Oro pedido</span><span class="value">${fmtNum(t.oro_pedido_g)} g (24k)</span></div>
     <div class="result-row"><span class="label">Oro reciclado</span><span class="value">${reciclLabel}</span></div>
-    <div class="result-row"><span class="label">Total disponible</span><span class="value gold">${fmtNum(total)} g</span></div>
+    <div class="result-row"><span class="label">Total oro puro disponible</span><span class="value gold">${fmtNum(fino)} g (24k equiv.)</span></div>
     <div class="result-row"><span class="label">Costo / g de oro 24k</span><span class="value gold">${fmtMoney(t.costo_g_24k)}</span></div>
   `;
 
@@ -1331,9 +1424,8 @@ function calcularPreview() {
   const t = getData().tandas.find(x => x.codigo === codigo);
   if (!t) return;
 
-  const totalDisp  = t.oro_pedido_g + t.oro_reciclado_g;
-  // fino total de entrada: pedido es 24k + reciclado a su kilataje
-  const finoEntrada = t.oro_pedido_g + t.oro_reciclado_g * ((t.kilate_reciclado || 0) / 24);
+  const finoEntrada = finoTanda(t);
+  const totalDisp   = finoEntrada;
 
   const produccion = {};
   let totalSalida = 0, totalFino = 0, totalPiezas = 0;
@@ -1410,8 +1502,7 @@ async function completarTanda() {
   const t = d.tandas.find(x => x.codigo === codigo);
   if (!t) return;
 
-  const totalDisp   = t.oro_pedido_g + t.oro_reciclado_g;
-  const finoEntrada = t.oro_pedido_g + t.oro_reciclado_g * ((t.kilate_reciclado || 0) / 24);
+  const finoEntrada = finoTanda(t);
   const produccion  = {};
   let totalSalida = 0, totalFino = 0;
 
@@ -1426,7 +1517,7 @@ async function completarTanda() {
   });
 
 
-  const sobro_g     = +(totalDisp - totalSalida).toFixed(4);
+  const sobro_g     = +(finoEntrada - totalFino).toFixed(4);
   const finoSobro   = finoEntrada - totalFino;
   const kilateSobro = sobro_g > 0.0001 ? +((finoSobro / sobro_g) * 24).toFixed(2) : 0;
 
@@ -1437,7 +1528,7 @@ async function completarTanda() {
     total_fino_salida_g: +totalFino.toFixed(4),
     sobro_g,
     kilate_sobro:        kilateSobro,
-    rendimiento_pct:     +(totalSalida / totalDisp * 100).toFixed(2),
+    rendimiento_pct:     finoEntrada > 0 ? +(totalFino / finoEntrada * 100).toFixed(2) : 0,
   };
 
   t.completada   = true;
@@ -1468,8 +1559,12 @@ function openDetalle(codigo) {
   const t = getData().tandas.find(x => x.codigo === codigo);
   if (!t) return;
 
-  const total = t.oro_pedido_g + t.oro_reciclado_g;
+  const fino = finoTanda(t);
   document.getElementById('modal-title').textContent = `Tanda ${t.codigo}`;
+
+  const reciclStr = t.oro_reciclado_g > 0
+    ? `${fmtNum(t.oro_reciclado_g)} g (${t.kilate_reciclado}k) → ${fmtNum(t.oro_reciclado_g*(t.kilate_reciclado/24))} g puro`
+    : '—';
 
   let html = `
     <h3>Información General</h3>
@@ -1477,8 +1572,8 @@ function openDetalle(codigo) {
     <div class="result-row"><span class="label">Oro pedido</span><span class="value">${fmtNum(t.oro_pedido_g)} g (24k)</span></div>
     <div class="result-row"><span class="label">Costo total</span><span class="value">${fmtMoney(t.costo_total)}</span></div>
     <div class="result-row"><span class="label">Costo / g de oro 24k</span><span class="value gold">${fmtMoney(t.costo_g_24k)}</span></div>
-    <div class="result-row"><span class="label">Oro reciclado</span><span class="value">${t.oro_reciclado_g > 0 ? `${fmtNum(t.oro_reciclado_g)} g (${t.kilate_reciclado}k)` : '—'}</span></div>
-    <div class="result-row"><span class="label">Total disponible</span><span class="value gold">${fmtNum(total)} g</span></div>
+    <div class="result-row"><span class="label">Oro reciclado</span><span class="value">${reciclStr}</span></div>
+    <div class="result-row"><span class="label">Total oro puro disponible</span><span class="value gold">${fmtNum(fino)} g (24k equiv.)</span></div>
     <div class="result-row"><span class="label">Estado</span><span>${renderBadge(t)}</span></div>
   `;
 
